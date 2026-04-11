@@ -1,12 +1,11 @@
 #!/bin/bash
 
-files="data/.zip"
+files="data/*.zip"
 
 echo '================================================================================'
 echo 'load denormalized'
 echo '================================================================================'
 time for file in $files; do
-    echo
     unzip -p "$file" \
     | sed 's/\\u0000//g' \
     | psql postgresql://postgres:pass@localhost:5438/postgres \
@@ -28,5 +27,7 @@ echo '==========================================================================
 echo 'load pg_normalized_batch'
 echo '================================================================================'
 time for file in $files; do
-    python3 -u load_tweets_batch.py --db=postgresql://postgres:pass@localhost:5440/ --inputs $file
+    python3 -u load_tweets_batch.py \
+	--db postgresql://postgres:pass@localhost:5440/postgres \
+	--inputs "$file"
 done
