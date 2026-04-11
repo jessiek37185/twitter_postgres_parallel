@@ -426,7 +426,7 @@ def _insert_tweets(connection,input_tweets):
             '''
             )
         params = {}
-	for i, tweet in enumerate(tweets):
+        for i, tweet in enumerate(tweets):
             for key, value in tweet.items():
                 params[key + str(i)] = value
 	print(list(params.keys())[:10])
