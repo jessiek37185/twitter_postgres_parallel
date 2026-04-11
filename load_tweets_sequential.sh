@@ -19,8 +19,7 @@ time for file in $files; do
     echo
     python3 load_tweets_batch.py \
         --db postgresql://postgres:pass@localhost:5439/postgres \
-        --inputs "$file" \
-        --print_every 10000
+        --inputs "$file" 
 done
 
 echo '================================================================================'
