@@ -38,7 +38,7 @@ def remove_nulls(s):
         return s.replace('\x00','\\x00')
 
 
-def get_id_urls(url):
+def get_id_urls(connection,url):
     '''
     Given a url, returns the corresponding id in the urls table.
     If no row exists for the url, then one is inserted automatically.
@@ -174,6 +174,9 @@ def insert_tweets(connection, tweets, batch_size=1000):
         print(datetime.datetime.now(),'insert_tweets i=',i)
         _insert_tweets(connection, tweet_batch)
 
+    sql, binds = _bulk_insert_sql(table, rows)
+    res = connection.execute(sqlalchemy.sql.text(sql), binds)
+
 
 def _insert_tweets(connection,input_tweets):
     '''
@@ -209,7 +212,7 @@ def _insert_tweets(connection,input_tweets):
         if tweet['user']['url'] is None:
             user_id_urls = None
         else:
-            user_id_urls = get_id_urls(tweet['user']['url'])
+            user_id_urls = get_id_urls(connection,tweet['user']['url'])
 
         users.append({
             'id_users':tweet['user']['id'],
@@ -295,7 +298,7 @@ def _insert_tweets(connection,input_tweets):
             'id_users':tweet['user']['id'],
             'created_at':tweet['created_at'],
             'in_reply_to_status_id':tweet.get('in_reply_to_status_id',None),
-            'in_reply_to_user_id':tweet.get('in_reply_to_user_id',None),
+            'in_reply_to_user_id':None,
             'quoted_status_id':tweet.get('quoted_status_id',None),
             'geo_coords':geo_coords,
             'geo_str':geo_str,
@@ -322,7 +325,7 @@ def _insert_tweets(connection,input_tweets):
             urls = tweet['entities']['urls']
 
         for url in urls:
-            id_urls = get_id_urls(url['expanded_url'])
+            id_urls = get_id_urls(connection,url['expanded_url'])
             tweet_urls.append({
                 'id_tweets':tweet['id'],
                 'id_urls':id_urls,
@@ -381,7 +384,7 @@ def _insert_tweets(connection,input_tweets):
                 media = []
 
         for medium in media:
-            id_urls = get_id_urls(medium['media_url'])
+            id_urls = get_id_urls(connection,medium['media_url'])
             tweet_media.append({
                 'id_tweets':tweet['id'],
                 'id_urls':id_urls,
@@ -416,14 +419,21 @@ def _insert_tweets(connection,input_tweets):
             VALUES
             '''
             +
-            ','.join([f"(:id_tweets{i},:id_users{i},:created_at{i},:in_reply_to_status_id{i},:in_reply_to_user_id{i},:quoted_status_id{i},ST_GeomFromText(:geo_str{i} || '(' || :geo_coords{i} || ')'), :retweet_count{i},:quote_count{i},:favorite_count{i},:withheld_copyright{i},:withheld_in_countries{i},:place_name{i},:country_code{i},:state_code{i},:lang{i},:text{i},:source{i})" for i in range(len(tweets))])
+            ','.join([f"(:id_tweets{i},:id_users{i},:created_at{i},:in_reply_to_status_id{i},:in_reply_to_user_id{i},:quoted_status_id{i},ST_GeomFromText(:geo_str{i} IS NULL OR :geo_coords{i} IS NULL THEN NULL ELSE ST_GeomFromText(:geo_str{i} || '(' || :geo_coords{i} || ')') END, :retweet_count{i},:quote_count{i},:favorite_count{i},:withheld_copyright{i},:withheld_in_countries{i},:place_name{i},:country_code{i},:state_code{i},:lang{i},:text{i},:source{i})" for i in range(len(tweets))])
             +
             '''
             ON CONFLICT DO NOTHING
             '''
             )
-        res = connection.execute(sql, { key+str(i):value for i,tweet in enumerate(tweets) for key,value in tweet.items() })
+        params = {}
+	for i, tweet in enumerate(tweets):
+            for key, value in tweet.items():
+                params[key + str(i)] = value
+	print(list(params.keys())[:10])
 
+        res = connection.execute(sql, params)
+
+	print(res.rowcount)
 
 if __name__ == '__main__':
 
@@ -445,14 +455,13 @@ if __name__ == '__main__':
     # NOTE:
     # we reverse sort the filenames because this results in fewer updates to the users table,
     # which prevents excessive dead tuples and autovacuums
-    with connection.begin() as trans:
-        for filename in sorted(args.inputs, reverse=True):
-            with zipfile.ZipFile(filename, 'r') as archive: 
-                print(datetime.datetime.now(),filename)
-                for subfilename in sorted(archive.namelist(), reverse=True):
-                    with io.TextIOWrapper(archive.open(subfilename)) as f:
-                        tweets = []
-                        for i,line in enumerate(f):
-                            tweet = json.loads(line)
-                            tweets.append(tweet)
-                        insert_tweets(connection,tweets,args.batch_size)
+    for filename in sorted(args.inputs, reverse=True):
+        with zipfile.ZipFile(filename, 'r') as archive: 
+            print(datetime.datetime.now(),filename)
+            for subfilename in sorted(archive.namelist(), reverse=True):
+                with io.TextIOWrapper(archive.open(subfilename)) as f:
+                    tweets = []
+                    for i,line in enumerate(f):
+                        tweet = json.loads(line)
+                        tweets.append(tweet)
+                    insert_tweets(connection,tweets,args.batch_size)
