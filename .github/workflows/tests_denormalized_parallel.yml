@@ -18,10 +18,9 @@ jobs:
         git submodule update
         docker compose up -d --build
         docker ps -a
-        - run: |
-            until docker compose exec -T pg_normalized_batch pg_isready -U postgres; do sleep 1; done
-            until docker compose exec -T pg_normalized pg_isready -U postgres; do sleep 1; done
-            until docker compose exec -T pg_denormalized pg_isready -U postgres; do sleep 1; done
-	./load_tweets_parallel.sh
+        until docker compose exec -T pg_normalized_batch pg_isready -U postgres; do sleep 1; done
+        until docker compose exec -T pg_normalized pg_isready -U postgres; do sleep 1; done
+        until docker compose exec -T pg_denormalized pg_isready -U postgres; do sleep 1; done
+        ./load_tweets_parallel.sh
         docker compose exec -T pg_denormalized ./run_tests.sh
 
