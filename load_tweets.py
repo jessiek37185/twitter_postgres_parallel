@@ -142,9 +142,9 @@ if __name__ == '__main__':
             if subfilename.endswith('/'):
                 continue
 
-            with io.TextIOWrapper(archive.open(subfilename)) as f:
+            with archive.open(subfilename) as f:
                 for line in f:
-                    tweet = json.loads(line)
+                    tweet = json.loads(line.decode('utf-8'))
                     insert_tweet(connection, tweet)
 
 connection.commit()
