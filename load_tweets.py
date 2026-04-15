@@ -322,7 +322,7 @@ def insert_tweet(connection, tweet):
 
     tags = (
         ["#" + hashtag["text"].lower() for hashtag in hashtags]
-        + ["$" + cashtag["text"].lower() for cashtags in cashtags]
+        + ["$" + cashtag["text"].lower() for cashtag in cashtags]
     )
 
     for tag in tags:
