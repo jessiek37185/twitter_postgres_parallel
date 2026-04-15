@@ -33,7 +33,7 @@ CREATE TABLE users (
  */
 CREATE TABLE tweets (
     id_tweets BIGINT PRIMARY KEY,
-    id_users BIGINT PEFERENCES users(id_users),
+    id_users BIGINT REFERENCES users(id_users),
     created_at TIMESTAMPTZ,
     in_reply_to_status_id BIGINT,
     in_reply_to_user_id BIGINT,
