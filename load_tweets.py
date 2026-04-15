@@ -37,7 +37,6 @@ def insert_tweet(connection, tweet):
             :protected, :verified, :screen_name, :name, :location,
             :description, :withheld_in_countries
         )
-        ON CONFLICT (id_users) DO NOTHING
     '''), {
         'id_users': tweet['user']['id'],
         'created_at': tweet['user']['created_at'],
@@ -60,18 +59,15 @@ def insert_tweet(connection, tweet):
         connection.execute(sqlalchemy.text('''
             INSERT INTO users (id_users, screen_name)
             VALUES (:id_users, :screen_name)
-            ON CONFLICT (id_users) DO NOTHING
         '''), {
             'id_users': m['id'],
             'screen_name': remove_nulls(m.get('screen_name'))
         })
 
-    # ---------- 🔥 FIX: reply user ----------
     if tweet.get('in_reply_to_user_id') is not None:
         connection.execute(sqlalchemy.text('''
             INSERT INTO users (id_users)
             VALUES (:id_users)
-            ON CONFLICT (id_users) DO NOTHING
         '''), {
             'id_users': tweet['in_reply_to_user_id']
         })
@@ -103,7 +99,6 @@ def insert_tweet(connection, tweet):
             :source, :text, :lang,
             CASE WHEN :geo IS NULL THEN NULL ELSE ST_GeomFromText(:geo,4326) END
         )
-        ON CONFLICT (id_tweets) DO NOTHING
     '''), {
         'id_tweets': tweet['id'],
         'id_users': tweet['user']['id'],
@@ -125,7 +120,6 @@ def insert_tweet(connection, tweet):
         connection.execute(sqlalchemy.text('''
             INSERT INTO tweet_mentions (id_tweets, id_users)
             VALUES (:id_tweets, :id_users)
-            ON CONFLICT DO NOTHING
         '''), {
             'id_tweets': tweet['id'],
             'id_users': m['id']
