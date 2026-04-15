@@ -56,13 +56,11 @@ CREATE TABLE tweets (
     -- FOREIGN KEY (in_reply_to_status_id) REFERENCES tweets(id_tweets),
     -- FOREIGN KEY (quoted_status_id) REFERENCES tweets(id_tweets)
 );
-CREATE INDEX tweets_index_geo ON tweets USING gist(geo);
 CREATE INDEX tweets_index_withheldincountries ON tweets USING gin(withheld_in_countries);
 
 CREATE TABLE tweet_urls (
     id_tweets BIGINT,
-    url TEXT,
-    PRIMARY KEY (id_tweets, id_urls)
+    url TEXT
 );
 
 
