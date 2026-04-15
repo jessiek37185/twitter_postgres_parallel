@@ -2,7 +2,6 @@
 
 import argparse
 import datetime
-import io
 import json
 import zipfile
 
@@ -14,12 +13,19 @@ import sqlalchemy
 ################################################################################
 
 def remove_nulls(s):
-    """
-    Postgres strings cannot contain the null byte.
-    """
     if s is None:
         return None
     return s.replace('\x00', '')
+
+
+def get_id_urls(url, connection):
+    sql = sqlalchemy.text("""
+        INSERT INTO urls (url)
+        VALUES (:url)
+        ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url
+        RETURNING id_urls;
+    """)
+    return connection.execute(sql, {"url": url}).scalar()
 
 
 def get_text(tweet):
@@ -72,9 +78,6 @@ def get_place_name(tweet):
 
 
 def get_geo_wkt(tweet):
-    """
-    Returns WKT string for geo field, or None.
-    """
     try:
         coords = tweet["geo"]["coordinates"]
         if coords is not None:
@@ -114,42 +117,21 @@ def insert_tweet(connection, tweet):
     geo_wkt = get_geo_wkt(tweet)
 
     # -------------------------------------------------------------------------
-    # users: hydrated sender
+    # users
     # -------------------------------------------------------------------------
-    user_url = tweet["user"].get("url")
-
     connection.execute(sqlalchemy.text("""
         INSERT INTO users (
-            id_users,
-            created_at,
-            updated_at,
-            friends_count,
-            listed_count,
-            favourites_count,
-            statuses_count,
-            protected,
-            verified,
-            screen_name,
-            name,
-            location,
-            description,
+            id_users, created_at, updated_at,
+            friends_count, listed_count, favourites_count, statuses_count,
+            protected, verified, screen_name, name, location, description,
             withheld_in_countries
         ) VALUES (
-            :id_users,
-            :created_at,
-            :updated_at,
-            :friends_count,
-            :listed_count,
-            :favourites_count,
-            :statuses_count,
-            :protected,
-            :verified,
-            :screen_name,
-            :name,
-            :location,
-            :description,
+            :id_users, :created_at, :updated_at,
+            :friends_count, :listed_count, :favourites_count, :statuses_count,
+            :protected, :verified, :screen_name, :name, :location, :description,
             :withheld_in_countries
         )
+        ON CONFLICT DO NOTHING
     """), {
         "id_users": tweet["user"]["id"],
         "created_at": tweet["user"]["created_at"],
@@ -168,91 +150,24 @@ def insert_tweet(connection, tweet):
     })
 
     # -------------------------------------------------------------------------
-    # users: unhydrated reply target
-    # -------------------------------------------------------------------------
-    if tweet.get("in_reply_to_user_id") is not None:
-        connection.execute(sqlalchemy.text("""
-            INSERT INTO users (
-                id_users,
-                screen_name,
-                name
-            ) VALUES (
-                :id_users,
-                :screen_name,
-                :name
-            )
-        """), {
-            "id_users": tweet["in_reply_to_user_id"],
-            "screen_name": remove_nulls(tweet.get("in_reply_to_screen_name")),
-            "name": None,
-        })
-
-    # -------------------------------------------------------------------------
-    # users: unhydrated mentions
-    # -------------------------------------------------------------------------
-    for mention in entities.get("user_mentions", []):
-        connection.execute(sqlalchemy.text("""
-            INSERT INTO users (
-                id_users,
-                screen_name,
-                name
-            ) VALUES (
-                :id_users,
-                :screen_name,
-                :name
-            )
-        """), {
-            "id_users": mention["id"],
-            "screen_name": remove_nulls(mention.get("screen_name")),
-            "name": None,
-        })
-
-    # -------------------------------------------------------------------------
     # tweets
     # -------------------------------------------------------------------------
     connection.execute(sqlalchemy.text("""
         INSERT INTO tweets (
-            id_tweets,
-            id_users,
-            created_at,
-            in_reply_to_status_id,
-            in_reply_to_user_id,
-            quoted_status_id,
-            retweet_count,
-            favorite_count,
-            quote_count,
-            withheld_copyright,
-            withheld_in_countries,
-            source,
-            text,
-            country_code,
-            state_code,
-            lang,
-            place_name,
-            geo
+            id_tweets, id_users, created_at,
+            in_reply_to_status_id, in_reply_to_user_id, quoted_status_id,
+            retweet_count, favorite_count, quote_count,
+            withheld_copyright, withheld_in_countries,
+            source, text, country_code, state_code, lang, place_name, geo
         ) VALUES (
-            :id_tweets,
-            :id_users,
-            :created_at,
-            :in_reply_to_status_id,
-            :in_reply_to_user_id,
-            :quoted_status_id,
-            :retweet_count,
-            :favorite_count,
-            :quote_count,
-            :withheld_copyright,
-            :withheld_in_countries,
-            :source,
-            :text,
-            :country_code,
-            :state_code,
-            :lang,
-            :place_name,
-            CASE
-                WHEN :geo IS NULL THEN NULL
-                ELSE ST_GeomFromText(:geo, 4326)
-            END
+            :id_tweets, :id_users, :created_at,
+            :in_reply_to_status_id, :in_reply_to_user_id, :quoted_status_id,
+            :retweet_count, :favorite_count, :quote_count,
+            :withheld_copyright, :withheld_in_countries,
+            :source, :text, :country_code, :state_code, :lang, :place_name,
+            CASE WHEN :geo IS NULL THEN NULL ELSE ST_GeomFromText(:geo, 4326) END
         )
+        ON CONFLICT DO NOTHING
     """), {
         "id_tweets": tweet["id"],
         "id_users": tweet["user"]["id"],
@@ -281,59 +196,33 @@ def insert_tweet(connection, tweet):
         expanded_url = url.get("expanded_url") or url.get("url")
         if expanded_url is None:
             continue
-        connection.execute(sqlalchemy.text("""
-            INSERT INTO tweet_urls (
-                id_tweets,
-                url
-            ) VALUES (
-                :id_tweets,
-                :url
-            )
-            ON CONFLICT DO NOTHING
-         """), {
-            "id_tweets": tweet["id"],
-            "url": expanded_url
-         })
 
-    # -------------------------------------------------------------------------
-    # tweet_mentions
-    # -------------------------------------------------------------------------
-    for mention in entities.get("user_mentions", []):
+        id_urls = get_id_urls(expanded_url, connection)
+
         connection.execute(sqlalchemy.text("""
-            INSERT INTO tweet_mentions (
-                id_tweets,
-                id_users
-            ) VALUES (
-                :id_tweets,
-                :id_users
-            )
+            INSERT INTO tweet_urls (id_tweets, id_urls)
+            VALUES (:id_tweets, :id_urls)
             ON CONFLICT DO NOTHING
         """), {
             "id_tweets": tweet["id"],
-            "id_users": mention["id"],
+            "id_urls": id_urls,
         })
 
     # -------------------------------------------------------------------------
     # tweet_tags
-    # IMPORTANT: lowercase tags so the provided SQL works
     # -------------------------------------------------------------------------
     hashtags = entities.get("hashtags", [])
     cashtags = entities.get("symbols", [])
 
     tags = (
-        ["#" + hashtag["text"].lower() for hashtag in hashtags]
-        + ["$" + cashtag["text"].lower() for cashtag in cashtags]
+        ["#" + h["text"].lower() for h in hashtags]
+        + ["$" + c["text"].lower() for c in cashtags]
     )
 
     for tag in tags:
         connection.execute(sqlalchemy.text("""
-            INSERT INTO tweet_tags (
-                id_tweets,
-                tag
-            ) VALUES (
-                :id_tweets,
-                :tag
-            )
+            INSERT INTO tweet_tags (id_tweets, tag)
+            VALUES (:id_tweets, :tag)
             ON CONFLICT DO NOTHING
         """), {
             "id_tweets": tweet["id"],
@@ -350,25 +239,21 @@ def insert_tweet(connection, tweet):
         try:
             media = tweet["extended_entities"]["media"]
         except KeyError:
-            media = []
+            pass
 
     for medium in media:
         media_url = medium.get("media_url")
         if media_url is None:
             continue
+
+        id_urls = get_id_urls(media_url, connection)
+
         connection.execute(sqlalchemy.text("""
-            INSERT INTO tweet_media (
-                id_tweets,
-                url,
-                type
-            ) VALUES (
-                :id_tweets,
-                :url,
-                :type
-            )
+            INSERT INTO tweet_media (id_tweets, id_urls, type)
+            VALUES (:id_tweets, :id_urls, :type)
         """), {
             "id_tweets": tweet["id"],
-            "url": media_url,
+            "id_urls": id_urls,
             "type": remove_nulls(medium.get("type")),
         })
 
@@ -403,12 +288,4 @@ if __name__ == "__main__":
                             insert_tweet(connection, tweet)
 
                             if i % args.print_every == 0:
-                                print(
-                                    datetime.datetime.now(),
-                                    filename,
-                                    subfilename,
-                                    "i=",
-                                    i,
-                                    "id=",
-                                    tweet["id"],
-                                )
+                                print(datetime.datetime.now(), filename, subfilename, "i=", i, "id=", tweet["id"])
