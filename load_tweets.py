@@ -4,7 +4,7 @@ import argparse
 import datetime
 import json
 import zipfile
-
+import time
 import sqlalchemy
 
 
@@ -19,14 +19,25 @@ def remove_nulls(s):
 
 
 def get_id_urls(url, connection):
-    connection.execute(sqlalchemy.text("""
-        INSERT INTO urls (url)
-        VALUES (:url)
-        ON CONFLICT DO NOTHING
-    """), {"url": url})
-    return connection.execute(sqlalchemy.text("""
-        SELECT id_urls FROM urls WHERE url = :url
-    """), {"url": url}).scalar()
+    while True:
+        try:
+            # try insert
+            connection.execute(sqlalchemy.text("""
+                INSERT INTO urls (url)
+                VALUES (:url)
+                ON CONFLICT DO NOTHING
+            """), {"url": url})
+
+            # fetch id
+            result = connection.execute(sqlalchemy.text("""
+                SELECT id_urls FROM urls WHERE url = :url
+            """), {"url": url}).scalar()
+
+            if result is not None:
+                return result
+
+        except Exception:
+            time.sleep(0.001)
 
 
 def get_text(tweet):
