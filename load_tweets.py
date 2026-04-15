@@ -19,13 +19,14 @@ def remove_nulls(s):
 
 
 def get_id_urls(url, connection):
-    sql = sqlalchemy.text("""
+    connection.execute(sqlalchemy.text("""
         INSERT INTO urls (url)
         VALUES (:url)
-        ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url
-        RETURNING id_urls;
-    """)
-    return connection.execute(sql, {"url": url}).scalar()
+        ON CONFLICT DO NOTHING
+    """), {"url": url})
+    return connection.execute(sqlalchemy.text("""
+        SELECT id_urls FROM urls WHERE url = :url
+    """), {"url": url}).scalar()
 
 
 def get_text(tweet):
