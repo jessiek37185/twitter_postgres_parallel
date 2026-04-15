@@ -201,8 +201,11 @@ def insert_tweet(connection, tweet):
 
         connection.execute(sqlalchemy.text("""
             INSERT INTO tweet_urls (id_tweets, id_urls)
-            VALUES (:id_tweets, :id_urls)
-            ON CONFLICT DO NOTHING
+            SELECT :id_tweets, :id_urls
+            WHERE NOT EXISTS (
+                SELECT 1 FROM tweet_urls
+                WHERE id_tweets = :id_tweets AND id_urls = :id_urls
+            )
         """), {
             "id_tweets": tweet["id"],
             "id_urls": id_urls,
@@ -222,8 +225,11 @@ def insert_tweet(connection, tweet):
     for tag in tags:
         connection.execute(sqlalchemy.text("""
             INSERT INTO tweet_tags (id_tweets, tag)
-            VALUES (:id_tweets, :tag)
-            ON CONFLICT DO NOTHING
+            SELECT :id_tweets, :tag
+            WHERE NOT EXISTS (
+                SELECT 1 FROM tweet_tags
+                WHERE id_tweets = :id_tweets AND tag = :tag
+            )
         """), {
             "id_tweets": tweet["id"],
             "tag": remove_nulls(tag),
@@ -250,7 +256,11 @@ def insert_tweet(connection, tweet):
 
         connection.execute(sqlalchemy.text("""
             INSERT INTO tweet_media (id_tweets, id_urls, type)
-            VALUES (:id_tweets, :id_urls, :type)
+            SELECT :id_tweets, :id_urls, :type
+            WHERE NOT EXISTS (
+                SELECT 1 FROM tweet_media
+                WHERE id_tweets = :id_tweets AND id_urls = :id_urls AND type = :type
+            )
         """), {
             "id_tweets": tweet["id"],
             "id_urls": id_urls,
