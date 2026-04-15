@@ -16,7 +16,7 @@ services:
   pg_normalized:
     build: services/pg_normalized
     volumes:
-      - ./sql:/docker-entrypoint-initdb.d
+      - ./services/pg_normalized/schema.sql:/docker-entrypoint-int-initdb.d/schema.sql
       - pg_normalized:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=postgres
@@ -28,7 +28,7 @@ services:
   pg_normalized_batch:
     build: services/pg_normalized_batch
     volumes:
-      - ./sql:/docker-entrypoint-initdb.d
+      - ./services/pg_normalized/schema.sql:/docker-entrypoint-int-initdb.d/schema.sql
       - pg_normalized_batch:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=postgres
