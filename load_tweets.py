@@ -139,7 +139,6 @@ def insert_tweet(connection, tweet):
             id_users,
             created_at,
             updated_at,
-            id_urls,
             friends_count,
             listed_count,
             favourites_count,
@@ -155,7 +154,6 @@ def insert_tweet(connection, tweet):
             :id_users,
             :created_at,
             :updated_at,
-            :id_urls,
             :friends_count,
             :listed_count,
             :favourites_count,
@@ -168,12 +166,10 @@ def insert_tweet(connection, tweet):
             :description,
             :withheld_in_countries
         )
-        ON CONFLICT DO NOTHING
     """), {
         "id_users": tweet["user"]["id"],
         "created_at": tweet["user"]["created_at"],
         "updated_at": tweet["created_at"],
-        "id_urls": user_id_urls,
         "friends_count": tweet["user"]["friends_count"],
         "listed_count": tweet["user"]["listed_count"],
         "favourites_count": tweet["user"]["favourites_count"],
@@ -201,7 +197,6 @@ def insert_tweet(connection, tweet):
                 :screen_name,
                 :name
             )
-            ON CONFLICT DO NOTHING
         """), {
             "id_users": tweet["in_reply_to_user_id"],
             "screen_name": remove_nulls(tweet.get("in_reply_to_screen_name")),
@@ -222,7 +217,6 @@ def insert_tweet(connection, tweet):
                 :screen_name,
                 :name
             )
-            ON CONFLICT DO NOTHING
         """), {
             "id_users": mention["id"],
             "screen_name": remove_nulls(mention.get("screen_name")),
@@ -275,7 +269,6 @@ def insert_tweet(connection, tweet):
                 ELSE ST_GeomFromText(:geo, 4326)
             END
         )
-        ON CONFLICT DO NOTHING
     """), {
         "id_tweets": tweet["id"],
         "id_users": tweet["user"]["id"],
@@ -314,10 +307,8 @@ def insert_tweet(connection, tweet):
                 :id_tweets,
                 :id_urls
             )
-            ON CONFLICT DO NOTHING
         """), {
-            "id_tweets": tweet["id"],
-            "id_urls": id_urls,
+            "id_tweets": tweet["id"]
         })
 
     # -------------------------------------------------------------------------
@@ -347,7 +338,7 @@ def insert_tweet(connection, tweet):
 
     tags = (
         ["#" + hashtag["text"].lower() for hashtag in hashtags]
-        + ["$" + cashtag["text"].lower() for cashtags in [cashtags] for cashtag in cashtags]
+        + ["$" + cashtag["text"].lower() for cashtags in [cashtags]
     )
 
     for tag in tags:
@@ -393,7 +384,6 @@ def insert_tweet(connection, tweet):
                 :id_urls,
                 :type
             )
-            ON CONFLICT DO NOTHING
         """), {
             "id_tweets": tweet["id"],
             "id_urls": id_urls,
