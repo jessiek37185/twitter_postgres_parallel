@@ -226,25 +226,21 @@ def insert_tweet(connection, tweet):
     # -------------------------------------------------------------------------
     # tweet_tags
     # -------------------------------------------------------------------------
-    hashtags = entities.get("hashtags", [])
-    cashtags = entities.get("symbols", [])
+    hashtags = tweet.get("entities", {}).get("hashtags", [])
+    cashtags = tweet.get("entities", {}).get("symbols", [])
 
     tags = (
         ["#" + h["text"].lower() for h in hashtags]
         + ["$" + c["text"].lower() for c in cashtags]
     )
 
-    for tag in tags:
+    for tag in set(tags):
         connection.execute(sqlalchemy.text("""
             INSERT INTO tweet_tags (id_tweets, tag)
-            SELECT :id_tweets, :tag
-            WHERE NOT EXISTS (
-                SELECT 1 FROM tweet_tags
-                WHERE id_tweets = :id_tweets AND tag = :tag
-            )
+            VALUES (:id_tweets, :tag)
         """), {
             "id_tweets": tweet["id"],
-            "tag": remove_nulls(tag),
+            "tag": tag,
         })
 
     # -------------------------------------------------------------------------
