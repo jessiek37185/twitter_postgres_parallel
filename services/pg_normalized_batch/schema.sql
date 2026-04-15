@@ -1,7 +1,14 @@
+CREATE EXTENSION postgis;
+
 \set ON_ERROR_STOP on
 
 BEGIN;
 
+-- Drop the old normalized-url table entirely
+DROP TABLE IF EXISTS urls;
+
+-- USERS: no UNIQUE/PK, store URL text directly
+DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     id_users BIGINT,
     created_at TIMESTAMPTZ,
@@ -19,12 +26,12 @@ CREATE TABLE users (
     description TEXT,
     withheld_in_countries VARCHAR(2)[]
 );
+CREATE INDEX IF NOT EXISTS users_id_idx ON users(id_users);
 
-/*
- * Tweets may be entered in hydrated or unhydrated form.
- */
+-- TWEETS: keep the primary key, but remove FKs to users
+DROP TABLE IF EXISTS tweets;
 CREATE TABLE tweets (
-    id_tweets BIGINT,
+    id_tweets BIGINT PRIMARY KEY,
     id_users BIGINT,
     created_at TIMESTAMPTZ,
     in_reply_to_status_id BIGINT,
@@ -41,66 +48,69 @@ CREATE TABLE tweets (
     state_code VARCHAR(2),
     lang TEXT,
     place_name TEXT,
-    geo TEXT
-
-    -- NOTE:
-    -- We do not have the following foreign keys because they would require us
-    -- to store many unhydrated tweets in this table.
-    -- FOREIGN KEY (in_reply_to_status_id) REFERENCES tweets(id_tweets),
-    -- FOREIGN KEY (quoted_status_id) REFERENCES tweets(id_tweets)
+    geo geometry
+    -- No foreign-key constraints on id_users or in_reply_to_user_id
 );
+CREATE INDEX tweets_index_geo               ON tweets USING gist(geo);
 CREATE INDEX tweets_index_withheldincountries ON tweets USING gin(withheld_in_countries);
 
+-- TWEET_URLS: denormalized URLs, no PK, no FK to users or URLs
+DROP TABLE IF EXISTS tweet_urls;
 CREATE TABLE tweet_urls (
     id_tweets BIGINT,
-    url TEXT
+    url       TEXT
 );
+CREATE INDEX IF NOT EXISTS tweet_urls_tweetid_idx ON tweet_urls(id_tweets);
 
-
+-- TWEET_MENTIONS: no foreign keys at all
+DROP TABLE IF EXISTS tweet_mentions;
 CREATE TABLE tweet_mentions (
     id_tweets BIGINT,
-    id_users BIGINT
+    id_users  BIGINT
 );
-CREATE INDEX tweet_mentions_index ON tweet_mentions(id_users);
+CREATE INDEX IF NOT EXISTS tweet_mentions_idx_t ON tweet_mentions(id_tweets);
+CREATE INDEX IF NOT EXISTS tweet_mentions_idx_u ON tweet_mentions(id_users);
 
+-- TWEET_TAGS: no PK
+DROP TABLE IF EXISTS tweet_tags;
 CREATE TABLE tweet_tags (
     id_tweets BIGINT,
-    tag TEXT
+    tag       TEXT
 );
-CREATE INDEX tweet_tags_index ON tweet_tags(id_tweets);
+CREATE INDEX IF NOT EXISTS tweet_tags_idx_t ON tweet_tags(id_tweets);
 
-
+-- TWEET_MEDIA: no PK, denormalized URLs
+DROP TABLE IF EXISTS tweet_media;
 CREATE TABLE tweet_media (
     id_tweets BIGINT,
-    url TEXT,
-    type TEXT
+    url       TEXT,
+    type      TEXT
 );
+CREATE INDEX IF NOT EXISTS tweet_media_idx_t ON tweet_media(id_tweets);
 
-/*
- * Precomputes the total number of occurrences for each hashtag
- */
+-- MATERIALIZED VIEWS: unchanged
+DROP MATERIALIZED VIEW IF EXISTS tweet_tags_total;
 CREATE MATERIALIZED VIEW tweet_tags_total AS (
-    SELECT 
-        row_number() over (order by count(*) desc) AS row,
-        tag, 
+    SELECT
+        row_number() OVER (ORDER BY count(*) DESC) AS row,
+        tag,
         count(*) AS total
     FROM tweet_tags
     GROUP BY tag
     ORDER BY total DESC
 );
 
-/*
- * Precomputes the number of hashtags that co-occur with each other
- */
+DROP MATERIALIZED VIEW IF EXISTS tweet_tags_cooccurrence;
 CREATE MATERIALIZED VIEW tweet_tags_cooccurrence AS (
-    SELECT 
+    SELECT
         t1.tag AS tag1,
         t2.tag AS tag2,
         count(*) AS total
     FROM tweet_tags t1
-    INNER JOIN tweet_tags t2 ON t1.id_tweets = t2.id_tweets
+    JOIN tweet_tags t2 ON t1.id_tweets = t2.id_tweets
     GROUP BY t1.tag, t2.tag
     ORDER BY total DESC
 );
 
 COMMIT;
+
