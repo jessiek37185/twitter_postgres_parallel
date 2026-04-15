@@ -22,21 +22,6 @@ def remove_nulls(s):
     return s.replace('\x00', '')
 
 
-def get_id_urls(url, connection):
-    """
-    Insert/select a url from the urls table and return its id_urls.
-    Assumes urls.url has a UNIQUE constraint.
-    """
-    sql = sqlalchemy.text("""
-        INSERT INTO urls (url)
-        VALUES (:url)
-        ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url
-        RETURNING id_urls;
-    """)
-    res = connection.execute(sql, {"url": url}).first()
-    return res[0]
-
-
 def get_text(tweet):
     try:
         return tweet["extended_tweet"].get("full_text", tweet.get("text"))
@@ -132,7 +117,6 @@ def insert_tweet(connection, tweet):
     # users: hydrated sender
     # -------------------------------------------------------------------------
     user_url = tweet["user"].get("url")
-    user_id_urls = get_id_urls(user_url, connection) if user_url else None
 
     connection.execute(sqlalchemy.text("""
         INSERT INTO users (
@@ -297,19 +281,19 @@ def insert_tweet(connection, tweet):
         expanded_url = url.get("expanded_url") or url.get("url")
         if expanded_url is None:
             continue
-
-        id_urls = get_id_urls(expanded_url, connection)
         connection.execute(sqlalchemy.text("""
             INSERT INTO tweet_urls (
                 id_tweets,
-                id_urls
+                url
             ) VALUES (
                 :id_tweets,
-                :id_urls
+                :url
             )
-        """), {
-            "id_tweets": tweet["id"]
-        })
+            ON CONFLICT DO NOTHING
+         """), {
+            "id_tweets": tweet["id"],
+            "url": expanded_url
+         })
 
     # -------------------------------------------------------------------------
     # tweet_mentions
@@ -372,21 +356,19 @@ def insert_tweet(connection, tweet):
         media_url = medium.get("media_url")
         if media_url is None:
             continue
-
-        id_urls = get_id_urls(media_url, connection)
         connection.execute(sqlalchemy.text("""
             INSERT INTO tweet_media (
                 id_tweets,
-                id_urls,
+                url,
                 type
             ) VALUES (
                 :id_tweets,
-                :id_urls,
+                :url,
                 :type
             )
         """), {
             "id_tweets": tweet["id"],
-            "id_urls": id_urls,
+            "url": media_url,
             "type": remove_nulls(medium.get("type")),
         })
 
