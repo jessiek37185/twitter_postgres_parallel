@@ -20,6 +20,6 @@ jobs:
         docker ps -a            
         sleep 20
         ./load_tweets_parallel.sh
-        docker compose exec -T pg_normalized_batch ./run_tests.sh
+        docker compose exec pg_normalized_batch sh /tmp/db/run_tests.sh
 
 
