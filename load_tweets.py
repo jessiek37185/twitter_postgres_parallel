@@ -137,9 +137,14 @@ if __name__ == '__main__':
     connection = engine.connect()
 
     for filename in sorted(args.inputs, reverse=True):
-        with zipfile.ZipFile(filename, 'r') as archive:
-            for subfilename in archive.namelist():
-                with io.TextIOWrapper(archive.open(subfilename)) as f:
-                    for line in f:
-                        tweet = json.loads(line)
-                        insert_tweet(connection, tweet)
+       with zipfile.ZipFile(filename, 'r') as archive:
+        for subfilename in archive.namelist():
+            if subfilename.endswith('/'):
+                continue
+
+            with io.TextIOWrapper(archive.open(subfilename)) as f:
+                for line in f:
+                    tweet = json.loads(line)
+                    insert_tweet(connection, tweet)
+
+connection.commit()
