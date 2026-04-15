@@ -49,7 +49,7 @@ CREATE TABLE tweets (
     state_code VARCHAR(2),
     lang TEXT,
     place_name TEXT,
-    geo geometry
+    geo TEXT
 
     -- NOTE:
     -- We do not have the following foreign keys because they would require us
@@ -68,7 +68,7 @@ CREATE TABLE tweet_urls (
 
 CREATE TABLE tweet_mentions (
     id_tweets BIGINT,
-    id_users BIGINT,
+    id_users BIGINT
 );
 CREATE INDEX tweet_mentions_index ON tweet_mentions(id_users);
 
