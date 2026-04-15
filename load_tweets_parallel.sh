@@ -1,21 +1,22 @@
 #!/bin/sh
 
-files=$(ls data/*.zip)
+files=$(find data/*)
 
 echo '================================================================================'
 echo 'load pg_denormalized (parallel)'
 echo '================================================================================'
 # FIXME: implement this with GNU parallel
-time parallel ./load_denormalized.sh ::: $files
+time echo "$files" | parallel ./load_denormalized.sh
 
 echo '================================================================================'
-echo 'load pg_normalized (parallel)'
+echo 'load pg_normalized (sequential)'
 echo '================================================================================'
 # FIXME: implement this with GNU parallel
-time parallel python3 load_tweets.py  --db postgresql://postgres:pass@localhost:5439/postgres --inputs {} --print_every 10000 ::: $files
+time echo "$files" | parallel python3 load_tweets.py --db=postgresql://postgres:pass@localhost:1629/postgres --inputs={}
 
 echo '================================================================================'
 echo 'load pg_normalized_batch (parallel)'
 echo '================================================================================'
 # FIXME: implement this with GNU parallel
-time parallel python3 load_tweets_batch.py --db postgresql://postgres:pass@localhost:5440/postgres --inputs {} --batch_size 1000 ::: $files
+time echo "$files" | parallel python3 load_tweets_batch.py --db=postgresql://postgres:pass@localhost:1729/postgres --inputs={}
+
