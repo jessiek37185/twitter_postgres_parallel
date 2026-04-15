@@ -11,7 +11,7 @@ BEGIN;
  * inside of a tweet someone else's tweet.
  */
 CREATE TABLE users (
-    id_users BIGINT PRIMARY KEY,
+    id_users BIGINT,
     created_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ,
     url TEXT,
@@ -32,8 +32,8 @@ CREATE TABLE users (
  * Tweets may be entered in hydrated or unhydrated form.
  */
 CREATE TABLE tweets (
-    id_tweets BIGINT PRIMARY KEY,
-    id_users BIGINT REFERENCES users(id_users),
+    id_tweets BIGINT,
+    id_users BIGINT,
     created_at TIMESTAMPTZ,
     in_reply_to_status_id BIGINT,
     in_reply_to_user_id BIGINT,
@@ -67,9 +67,8 @@ CREATE TABLE tweet_urls (
 
 
 CREATE TABLE tweet_mentions (
-    id_tweets BIGINT REFERENCES tweets(id_tweets),
-    id_users BIGINT REFERENCES users(id_users),
-    PRIMARY KEY (id_tweets, id_users)
+    id_tweets BIGINT,
+    id_users BIGINT,
 );
 CREATE INDEX tweet_mentions_index ON tweet_mentions(id_users);
 
