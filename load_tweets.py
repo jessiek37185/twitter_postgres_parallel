@@ -25,19 +25,14 @@ def get_id_urls(url, connection):
 
 def insert_tweet(connection, tweet):
 
-    # ---------- users ----------
-    user_id_urls = None
-    if tweet['user']['url']:
-        user_id_urls = get_id_urls(tweet['user']['url'], connection)
-
     connection.execute(sqlalchemy.text('''
         INSERT INTO users (
-            id_users, created_at, updated_at, id_urls,
+            id_users, created_at, updated_at,
             friends_count, listed_count, favourites_count, statuses_count,
             protected, verified, screen_name, name, location,
             description, withheld_in_countries
         ) VALUES (
-            :id_users, :created_at, :updated_at, :id_urls,
+            :id_users, :created_at, :updated_at,
             :friends_count, :listed_count, :favourites_count, :statuses_count,
             :protected, :verified, :screen_name, :name, :location,
             :description, :withheld_in_countries
@@ -47,7 +42,6 @@ def insert_tweet(connection, tweet):
         'id_users': tweet['user']['id'],
         'created_at': tweet['user']['created_at'],
         'updated_at': tweet['created_at'],
-        'id_urls': user_id_urls,
         'friends_count': tweet['user']['friends_count'],
         'listed_count': tweet['user']['listed_count'],
         'favourites_count': tweet['user']['favourites_count'],
