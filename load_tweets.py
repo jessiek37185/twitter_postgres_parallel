@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import sqlalchemy
-import datetime
 import zipfile
 import io
 import json
@@ -62,7 +61,7 @@ def insert_tweet(connection, tweet):
         'withheld_in_countries': tweet['user'].get('withheld_in_countries')
     })
 
-    # ---------- mentions (fix FK issue) ----------
+    # ---------- mentions ----------
     for m in tweet['entities']['user_mentions']:
         connection.execute(sqlalchemy.text('''
             INSERT INTO users (id_users, screen_name)
@@ -71,6 +70,16 @@ def insert_tweet(connection, tweet):
         '''), {
             'id_users': m['id'],
             'screen_name': remove_nulls(m.get('screen_name'))
+        })
+
+    # ---------- 🔥 FIX: reply user ----------
+    if tweet.get('in_reply_to_user_id') is not None:
+        connection.execute(sqlalchemy.text('''
+            INSERT INTO users (id_users)
+            VALUES (:id_users)
+            ON CONFLICT (id_users) DO NOTHING
+        '''), {
+            'id_users': tweet['in_reply_to_user_id']
         })
 
     # ---------- geo ----------
@@ -145,4 +154,4 @@ if __name__ == '__main__':
                 with io.TextIOWrapper(archive.open(subfilename)) as f:
                     for line in f:
                         tweet = json.loads(line)
-                        insert_tweet(connection, tweet)    
+                        insert_tweet(connection, tweet)
