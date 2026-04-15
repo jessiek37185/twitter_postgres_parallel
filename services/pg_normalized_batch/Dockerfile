@@ -1,4 +1,4 @@
-FROM postgres:13
+FROM postgis/postgis
 
 RUN apt-get update && apt-get install -y \
     less \

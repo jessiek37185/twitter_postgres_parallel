@@ -1,3 +1,5 @@
+CREATE EXTENSION postgis;
+
 \set ON_ERROR_STOP on
 
 BEGIN;
@@ -52,7 +54,7 @@ CREATE TABLE tweets (
     state_code VARCHAR(2),
     lang TEXT,
     place_name TEXT,
-    geo TEXT,
+    geo geometry,
     FOREIGN KEY (id_users) REFERENCES users(id_users),
     FOREIGN KEY (in_reply_to_user_id) REFERENCES users(id_users)
 
@@ -62,6 +64,7 @@ CREATE TABLE tweets (
     -- FOREIGN KEY (in_reply_to_status_id) REFERENCES tweets(id_tweets),
     -- FOREIGN KEY (quoted_status_id) REFERENCES tweets(id_tweets)
 );
+CREATE INDEX tweets_index_geo ON tweets USING gist(geo);
 CREATE INDEX tweets_index_withheldincountries ON tweets USING gin(withheld_in_countries);
 
 CREATE TABLE tweet_urls (
