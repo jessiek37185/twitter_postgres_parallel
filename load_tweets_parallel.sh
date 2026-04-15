@@ -12,7 +12,7 @@ echo 'load pg_normalized (parallel)'
 echo '================================================================================'
 time find data -type f | parallel -j 10 python3 load_tweets.py \
     --db=postgresql://postgres:pass@localhost:5439/postgres \
-    --inputs {} --print_every 10000
+    --inputs {}
 
 echo '================================================================================'
 echo 'load pg_normalized_batch (parallel)'
