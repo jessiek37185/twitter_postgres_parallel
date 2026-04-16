@@ -1,5 +1,10 @@
-FROM postgis/postgis:13-3.4
+FROM postgis/postgis
 
+RUN apt-get update && apt-get install -y \
+    less \
+    make \
+    vim
+    
 WORKDIR /tmp/db
 
 RUN mkdir /data && chown postgres /data
