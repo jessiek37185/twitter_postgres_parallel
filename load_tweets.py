@@ -240,7 +240,7 @@ def insert_tweet(connection, tweet):
             VALUES (:id_tweets, :tag)
         """), {
             "id_tweets": tweet["id"],
-            "tag": tag,
+            "tag": tag
         })
 
     # -------------------------------------------------------------------------
