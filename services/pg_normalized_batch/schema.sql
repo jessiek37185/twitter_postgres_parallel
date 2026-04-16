@@ -4,7 +4,6 @@ CREATE EXTENSION postgis;
 
 BEGIN;
 
-
 /*
  * Users may be partially hydrated with only a name/screen_name 
  * if they are first encountered during a quote/reply/mention 
@@ -14,7 +13,7 @@ CREATE TABLE users (
     id_users BIGINT,
     created_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ,
-    url TEXT,
+    urls TEXT,
     friends_count INTEGER,
     listed_count INTEGER,
     favourites_count INTEGER,
@@ -49,7 +48,7 @@ CREATE TABLE tweets (
     state_code VARCHAR(2),
     lang TEXT,
     place_name TEXT,
-    geo TEXT
+    geo geometry
 
     -- NOTE:
     -- We do not have the following foreign keys because they would require us
@@ -57,11 +56,12 @@ CREATE TABLE tweets (
     -- FOREIGN KEY (in_reply_to_status_id) REFERENCES tweets(id_tweets),
     -- FOREIGN KEY (quoted_status_id) REFERENCES tweets(id_tweets)
 );
+CREATE INDEX tweets_index_geo ON tweets USING gist(geo);
 CREATE INDEX tweets_index_withheldincountries ON tweets USING gin(withheld_in_countries);
 
 CREATE TABLE tweet_urls (
     id_tweets BIGINT,
-    url TEXT
+    urls TEXT
 );
 
 
@@ -81,7 +81,7 @@ CREATE INDEX tweet_tags_index ON tweet_tags(id_tweets);
 
 CREATE TABLE tweet_media (
     id_tweets BIGINT,
-    url TEXT,
+    urls TEXT,
     type TEXT
 );
 
